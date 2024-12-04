@@ -42,48 +42,112 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 struct ContentView: View {
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 5) {
+                ListView(title: "Now")
+                ListView(title: "Later")
+            }
+        }
+    }
+}
+
+struct ListView: View {
     @State private var items: [TaskItem] = []
+    @State private var deletedItems: [TaskItem] = []
     @State private var newItem: String = ""
+    @State private var showDeletedItems: Bool = false
+    var title: String
 
     var body: some View {
         VStack(spacing: 10) {
-            TextField("Add new item", text: $newItem, onCommit: addItem)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
+            Text(title)
+                .font(.headline)
 
-            List {
-                ForEach(items) { item in
-                    HStack {
-                        Button(action: {
-                            toggleTaskCompletion(item)
-                        }) {
-                            Image(systemName: item.isCompleted ? "checkmark.square" : "square")
-                        }
-                        .buttonStyle(BorderlessButtonStyle())
-
-                        Text(item.name)
+            ForEach(items) { item in
+                HStack(alignment: .top) {
+                    Button(action: {
+                        completeItem(item)
+                    }) {
+                        Image(systemName: "square")
                     }
+                    .buttonStyle(BorderlessButtonStyle())
+
+                    Text(item.name)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Text(timeSinceAdded(item.addedAt))
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                        .frame(alignment: .trailing)
                 }
             }
-            .frame(maxWidth: 300, maxHeight: 400)
+
+            HStack {
+                TextField("Add new item", text: $newItem, onCommit: {
+                    addItem()
+                })
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                Button(action: {
+                    showDeletedItems.toggle()
+                }) {
+                    Image(systemName: "tray.full")
+                }
+            }
+
+            if showDeletedItems {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(deletedItems) { item in
+                            HStack {
+                                Text(item.name)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                if let completedAt = item.completedAt {
+                                    Text(timeSinceAdded(completedAt))
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .frame(alignment: .trailing)
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 200)
+                .padding()
+                .background(Color.gray.opacity(0.1))
+                .cornerRadius(8)
+            }
         }
         .padding()
     }
 
+
     private func addItem() {
         guard !newItem.isEmpty else { return }
-        let task = TaskItem(id: UUID(), name: newItem, isCompleted: false)
+        let task = TaskItem(id: UUID(), name: newItem, addedAt: Date(), completedAt: nil)
         items.append(task)
-        newItem = ""
     }
 
-    private func toggleTaskCompletion(_ item: TaskItem) {
+    private func completeItem(_ item: TaskItem) {
         if let index = items.firstIndex(where: { $0.id == item.id }) {
-            if items[index].isCompleted {
-                items.remove(at: index)
-            } else {
-                items[index].isCompleted.toggle()
-            }
+            var completedTask = items[index]
+            completedTask.completedAt = Date()
+            deletedItems.append(completedTask)
+            items.remove(at: index)
+        }
+    }
+
+    private func timeSinceAdded(_ date: Date) -> String {
+        let interval = Date().timeIntervalSince(date)
+        let hours = Int(interval / 3600)
+        let days = Int(interval / 86400)
+
+        if days > 0 {
+            return "\(days) day(s) ago"
+        } else {
+            return "\(hours) hour(s) ago"
         }
     }
 }
@@ -91,5 +155,6 @@ struct ContentView: View {
 struct TaskItem: Identifiable {
     let id: UUID
     var name: String
-    var isCompleted: Bool
+    var addedAt: Date
+    var completedAt: Date?
 }
