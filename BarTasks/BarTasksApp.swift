@@ -48,19 +48,29 @@ struct ContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 5) {
-                ListView(title: "Now")
-                ListView(title: "Later")
+                ListView(title: "Now", itemsKey: "items", deletedItemsKey: "deletedItems")
+                ListView(title: "Later", itemsKey: "laterItems", deletedItemsKey: "laterDeletedItems")
             }
         }
     }
 }
 
 struct ListView: View {
-    @State private var items: [TaskItem] = []
-    @State private var deletedItems: [TaskItem] = []
+    @State private var items: [TaskItem]
+    @State private var deletedItems: [TaskItem]
     @State private var newItem: String = ""
     @State private var showDeletedItems: Bool = false
     var title: String
+    var itemsKey: String
+    var deletedItemsKey: String
+
+    init(title: String, itemsKey: String, deletedItemsKey: String) {
+        self.title = title
+        self.itemsKey = itemsKey
+        self.deletedItemsKey = deletedItemsKey
+        _items = State(initialValue: UserDefaultsManager.loadItems(forKey: itemsKey))
+        _deletedItems = State(initialValue: UserDefaultsManager.loadItems(forKey: deletedItemsKey))
+    }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -126,12 +136,15 @@ struct ListView: View {
             }
         }
         .padding()
+        .onDisappear(perform: saveData)
     }
 
     private func addItem() {
         guard !newItem.isEmpty else { return }
         let task = TaskItem(id: UUID(), name: newItem, addedAt: Date(), completedAt: nil)
         items.append(task)
+        newItem = ""
+        saveData()
     }
 
     private func completeItem(_ item: TaskItem) {
@@ -140,7 +153,13 @@ struct ListView: View {
             completedTask.completedAt = Date()
             deletedItems.append(completedTask)
             items.remove(at: index)
+            saveData()
         }
+    }
+
+    private func saveData() {
+        UserDefaultsManager.saveItems(items, forKey: itemsKey)
+        UserDefaultsManager.saveItems(deletedItems, forKey: deletedItemsKey)
     }
 
     private func timeSinceAdded(_ date: Date) -> String {
@@ -156,9 +175,25 @@ struct ListView: View {
     }
 }
 
-struct TaskItem: Identifiable {
+struct TaskItem: Identifiable, Codable {
     let id: UUID
     var name: String
     var addedAt: Date
     var completedAt: Date?
+}
+
+class UserDefaultsManager {
+    static func saveItems(_ items: [TaskItem], forKey key: String) {
+        if let data = try? JSONEncoder().encode(items) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    static func loadItems(forKey key: String) -> [TaskItem] {
+        if let data = UserDefaults.standard.data(forKey: key),
+           let items = try? JSONDecoder().decode([TaskItem].self, from: data) {
+            return items
+        }
+        return []
+    }
 }
