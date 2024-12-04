@@ -89,10 +89,12 @@ struct ListView: View {
                 })
                     .textFieldStyle(RoundedBorderTextFieldStyle())
 
-                Button(action: {
-                    showDeletedItems.toggle()
-                }) {
-                    Image(systemName: "tray.full")
+                if !deletedItems.isEmpty {
+                    Button(action: {
+                        showDeletedItems.toggle()
+                    }) {
+                        Image(systemName: "tray.full")
+                    }
                 }
             }
 
@@ -114,7 +116,7 @@ struct ListView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 200)
+                .frame(maxHeight: 125)
                 .padding()
                 .background(Color.gray.opacity(0.1))
                 .cornerRadius(8)
@@ -122,7 +124,6 @@ struct ListView: View {
         }
         .padding()
     }
-
 
     private func addItem() {
         guard !newItem.isEmpty else { return }
