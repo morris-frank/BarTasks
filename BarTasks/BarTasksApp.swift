@@ -17,6 +17,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var popover: NSPopover!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Remove from Dock
+        NSApp.setActivationPolicy(.accessory)
+
         // Create the status bar item
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
