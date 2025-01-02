@@ -95,7 +95,7 @@ struct ListView: View {
                     }
                     .buttonStyle(BorderlessButtonStyle())
 
-                    Text(item.name)
+                    URLTextView(text: item.name)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     if let imageData = item.imageData,
@@ -232,6 +232,62 @@ struct ListView: View {
         } else {
             return "\(hours) hour(s) ago"
         }
+    }
+}
+
+struct URLTextView: View {
+    let text: String
+    
+    var body: some View {
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let matches = detector?.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+        
+        if let matches = matches, !matches.isEmpty {
+            let nsString = text as NSString
+            HStack(spacing: 0) {
+                ForEach(0..<matches.count, id: \.self) { index in
+                    let match = matches[index]
+                    
+                    // Add text before the link if it's the first match
+                    if index == 0 && match.range.location > 0 {
+                        Text(nsString.substring(with: NSRange(location: 0, length: match.range.location)))
+                    }
+                    
+                    // Add the link
+                    if let url = match.url {
+                        Text(simplifyURL(url))
+                            .underline()
+                            .onTapGesture {
+                                NSWorkspace.shared.open(url)
+                            }
+                    }
+                    
+                    // Add text between links or after the last link
+                    let endOfCurrentLink = match.range.location + match.range.length
+                    let nextStart = index + 1 < matches.count ? matches[index + 1].range.location : nsString.length
+                    if endOfCurrentLink < nextStart {
+                        Text(nsString.substring(with: NSRange(location: endOfCurrentLink, length: nextStart - endOfCurrentLink)))
+                    }
+                }
+            }
+        } else {
+            Text(text)
+        }
+    }
+    
+    private func simplifyURL(_ url: URL) -> String {
+        guard let host = url.host?.lowercased() else { return url.absoluteString }
+        
+        // Remove 'www.' if present
+        let domain = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        
+        // If there's a path and it's not just "/", add "…"
+        let path = url.path
+        if path.count > 1 {
+            return "\(domain)…"
+        }
+        
+        return domain
     }
 }
 
